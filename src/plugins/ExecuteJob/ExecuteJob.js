@@ -59,7 +59,7 @@ define([
         this.canceled = false;
 
         this.changes = {};
-        this.readChanges = {};  // read-only changes being applied
+        this.currentChanges = {};  // read-only changes being applied
         this.creations = {};
         this.deletions = [];
         this.createIdToMetadataId = {};
@@ -199,9 +199,17 @@ define([
             nodeId = this.core.getPath(node);
         }
 
-        // Check the most recent changes, then the readChanges, then the model
-        var value = this._getValueFrom(nodeId, attr, node, this.changes) ||
-            this._getValueFrom(nodeId, attr, node, this.readChanges);
+        // Check the most recent changes, then the currentChanges, then the model
+        //var value = this._getValueFrom(nodeId, attr, node, this.changes) ||
+            //this._getValueFrom(nodeId, attr, node, this.currentChanges);
+            console.log('checking for ' + attr + ' in changes');
+        var value = this._getValueFrom(nodeId, attr, node, this.changes);
+
+        if (!value) {
+            console.log('checking for ' + attr + ' in currentChanges');
+            console.log(this.currentChanges);
+            value = this._getValueFrom(nodeId, attr, node, this.currentChanges);
+        }
 
         if (value) {
             return value;
@@ -276,7 +284,7 @@ define([
             promises.push(promise);
         }
 
-        this.readChanges = this.changes;
+        this.currentChanges = this.changes;
         this.changes = {};
         // Need to differentiate between read/write changes.
         this.logger.info(`About to apply changes for ${promises.length} nodes`);
@@ -288,8 +296,8 @@ define([
                     this._applyNodeChanges(nodes[i], changesFor[id]);
                 }
 
-                // Local model is now up-to-date. No longer need readChanges
-                this.readChanges = {};
+                // Local model is now up-to-date. No longer need currentChanges
+                this.currentChanges = {};
             });
     };
 
