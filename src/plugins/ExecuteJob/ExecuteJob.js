@@ -57,7 +57,9 @@ define([
         this._oldMetadataByName = {};  // name -> id
         this.lastAppliedCmd = {};
         this.canceled = false;
+
         this.changes = {};
+        this.readChanges = {};  // read-only changes being applied
         this.creations = {};
         this.deletions = [];
         this.createIdToMetadataId = {};
@@ -183,8 +185,7 @@ define([
     };
 
     ExecuteJob.prototype.getAttribute = function (node, attr) {
-        var nodeId,
-            base;
+        var nodeId;
 
         assert(this.deletions.indexOf(nodeId) === -1,
             `Cannot get ${attr} from deleted node ${nodeId}`);
@@ -193,25 +194,36 @@ define([
         if (this.isCreateId(node)) {
             nodeId = node;
             assert(this.creations[nodeId], `Creation node not updated: ${nodeId}`);
-
-            // Set the node to the base so it falls back to an
-            // existing node if the attr info isn't in the diff
             node = this.META[this.creations[nodeId].base];
         } else {
             nodeId = this.core.getPath(node);
         }
 
-        // Check the changes; fallback on actual node
-        if (this.changes[nodeId] && this.changes[nodeId][attr] !== undefined) {
-            // If deleted the attribute, get the default (inherited) value
-            if (this.changes[nodeId][attr] === null) {
-                base = this.core.getBase(node);
-                return this.getAttribute(base, attr);
-            }
-            return this.changes[nodeId][attr];
+        // Check the most recent changes, then the readChanges, then the model
+        var value = this._getValueFrom(nodeId, attr, node, this.changes) ||
+            this._getValueFrom(nodeId, attr, node, this.readChanges);
+
+        if (value) {
+            return value;
         }
 
         return this.core.getAttribute(node, attr);
+    };
+
+    ExecuteJob.prototype._getValueFrom = function (nodeId, attr, node, changes) {
+        var base;
+        if (changes[nodeId] && changes[nodeId][attr] !== undefined) {
+            // If deleted the attribute, get the default (inherited) value
+            if (changes[nodeId][attr] === null) {
+                if (this.isCreateId(nodeId)) {
+                    base = node;
+                } else {
+                    base = this.core.getBase(node);
+                }
+                return this.getAttribute(base, attr);
+            }
+            return changes[nodeId][attr];
+        }
     };
 
     ExecuteJob.prototype._applyNodeChanges = function (node, changes) {
@@ -264,7 +276,9 @@ define([
             promises.push(promise);
         }
 
+        this.readChanges = this.changes;
         this.changes = {};
+        // Need to differentiate between read/write changes.
         this.logger.info(`About to apply changes for ${promises.length} nodes`);
         return Q.all(promises)
             .then(nodes => {
@@ -273,6 +287,9 @@ define([
                     assert(nodes[i], `node is ${nodes[i]} (${nodeIds[i]})`);
                     this._applyNodeChanges(nodes[i], changesFor[id]);
                 }
+
+                // Local model is now up-to-date. No longer need readChanges
+                this.readChanges = {};
             });
     };
 
@@ -1176,6 +1193,7 @@ define([
                                 last = stdout.lastIndexOf('\n'),
                                 result,
                                 lastLine,
+                                next = Q(),
                                 msg;
 
                             // parse deepforge commands
@@ -1189,13 +1207,15 @@ define([
 
                             if (output) {
                                 // Send notification to all clients watching the branch
-                                this.logManager.appendTo(jobId, output)
+                                next = next
+                                    .then(() => this.logManager.appendTo(jobId, output))
                                     .then(() => this.notifyStdoutUpdate(jobId));
                             }
                             if (result.hasMetadata) {
                                 msg = `Updated graph/image output for ${name}`;
-                                return this.save(msg);
+                                next = next.then(() => this.save(msg));
                             }
+                            return next;
                         });
                 }
             })
