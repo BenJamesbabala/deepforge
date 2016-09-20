@@ -200,16 +200,8 @@ define([
         }
 
         // Check the most recent changes, then the currentChanges, then the model
-        //var value = this._getValueFrom(nodeId, attr, node, this.changes) ||
-            //this._getValueFrom(nodeId, attr, node, this.currentChanges);
-            console.log('checking for ' + attr + ' in changes');
-        var value = this._getValueFrom(nodeId, attr, node, this.changes);
-
-        if (!value) {
-            console.log('checking for ' + attr + ' in currentChanges');
-            console.log(this.currentChanges);
-            value = this._getValueFrom(nodeId, attr, node, this.currentChanges);
-        }
+        var value = this._getValueFrom(nodeId, attr, node, this.changes) ||
+            this._getValueFrom(nodeId, attr, node, this.currentChanges);
 
         if (value) {
             return value;
