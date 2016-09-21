@@ -78,6 +78,18 @@ define([
     ExecuteJob.prototype = Object.create(PluginBase.prototype);
     ExecuteJob.prototype.constructor = ExecuteJob;
 
+    ExecuteJob.prototype.configure = function () {
+        var result = PluginBase.prototype.configure.apply(this, arguments);
+
+        this.logManager = new JobLogsClient({
+            logger: this.logger,
+            port: this.gmeConfig.server.port,
+            branchName: this.branchName,
+            projectId: this.projectId
+        });
+        return result;
+    };
+
     /**
      * Main function for the plugin to execute. This will perform the execution.
      * Notes:
@@ -96,13 +108,6 @@ define([
             return callback(`Cannot execute ${typeName} (expected Job)`, this.result);
         }
 
-        // Get the gmeConfig...
-        this.logManager = new JobLogsClient({
-            logger: this.logger,
-            port: this.gmeConfig.server.port,
-            branchName: this.branchName,
-            projectId: this.projectId
-        });
         this._callback = callback;
         this.currentForkName = null;
         this.prepare()
@@ -200,6 +205,8 @@ define([
         }
 
         // Check the most recent changes, then the currentChanges, then the model
+        this.logger.info('this.changes:', JSON.stringify(this.changes, null, 2));
+        this.logger.info('this.currentChanges:', JSON.stringify(this.currentChanges, null, 2));
         var value = this._getValueFrom(nodeId, attr, node, this.changes) ||
             this._getValueFrom(nodeId, attr, node, this.currentChanges);
 
@@ -235,6 +242,7 @@ define([
             attr = changes[i][0];
             value = changes[i][1];
             if (value !== null) {
+                this.logger.info(`Setting ${attr} to ${value} (${this.core.getPath(node)})`);
                 this.core.setAttribute(node, attr, value);
             } else {
                 this.core.delAttribute(node, attr);
@@ -454,7 +462,24 @@ define([
             .then(activeObject => this.activeNode = activeObject)
             .then(() => {
                 var metaNames = Object.keys(this.META);
+
                 return Q.all(metaNames.map(name => this.updateMetaNode(name)));
+            })
+            .then(() => {
+                var mdNodes,
+                    mdIds;
+
+                mdIds = Object.keys(this._metadata)
+                    .filter(id => !this.isCreateId(this._metadata[id]));
+
+                mdNodes = mdIds.map(id => this.core.getPath(this._metadata[id]))
+                    .map(nodeId => this.core.loadByPath(this.rootNode, nodeId));
+
+                return Q.all(mdNodes).then(nodes => {
+                    for (var i = nodes.length; i--;) {
+                        this._metadata[mdIds[i]] = nodes[i];
+                    }
+                });
             });
     };
 
