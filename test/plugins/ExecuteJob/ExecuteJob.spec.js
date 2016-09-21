@@ -209,7 +209,6 @@ describe('ExecuteJob', function () {
 
         // Check that it gets the correct value from a newly created node after
         // it has been saved/created
-        // TODO
         it('should get changed attribute', function(done) {
             // Run setAttribute on some node
             var graphTmp = plugin.createNode('pipeline.Graph', node),

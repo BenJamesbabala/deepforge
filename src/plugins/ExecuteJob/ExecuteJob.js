@@ -39,6 +39,8 @@ define([
         CREATE_PREFIX = 'created_node_',
         INDEX = 1;
 
+    var LINE_ID;  // REMOVE
+
     /**
      * Initializes a new instance of ExecuteJob.
      * @class
@@ -177,6 +179,12 @@ define([
             assert(typeof nodeId === 'string', `Cannot set attribute of ${nodeId}`);
         }
 
+        if (attr === 'points') {
+            this.logger.info('Setting attribute "points" to ' + value);
+            this.logger.info('this.changes:', JSON.stringify(this.changes, null, 2));
+            this.logger.info('this.currentChanges:', JSON.stringify(this.currentChanges, null, 2));
+        }
+
         if (value !== null) {
             this.logger.info(`Setting ${attr} of ${nodeId} to ${value}`);
         } else {
@@ -205,8 +213,11 @@ define([
         }
 
         // Check the most recent changes, then the currentChanges, then the model
-        this.logger.info('this.changes:', JSON.stringify(this.changes, null, 2));
-        this.logger.info('this.currentChanges:', JSON.stringify(this.currentChanges, null, 2));
+        if (attr === 'points') {
+            this.logger.info('Getting attribute "points"');
+            this.logger.info('this.changes:', JSON.stringify(this.changes, null, 2));
+            this.logger.info('this.currentChanges:', JSON.stringify(this.currentChanges, null, 2));
+        }
         var value = this._getValueFrom(nodeId, attr, node, this.changes) ||
             this._getValueFrom(nodeId, attr, node, this.currentChanges);
 
@@ -241,6 +252,9 @@ define([
         for (var i = changes.length; i--;) {
             attr = changes[i][0];
             value = changes[i][1];
+            if (attr === 'points') {  // REMOVE
+                LINE_ID = this.core.getPath(node);
+            }  // REMOVE
             if (value !== null) {
                 this.logger.info(`Setting ${attr} to ${value} (${this.core.getPath(node)})`);
                 this.core.setAttribute(node, attr, value);
@@ -268,6 +282,12 @@ define([
             promise;
 
         this.logger.info('Collecting changes to apply in commit');
+
+        // REMOVE
+        this.logger.info('this.changes:', JSON.stringify(this.changes, null, 2));
+        this.logger.info('this.currentChanges:', JSON.stringify(this.currentChanges, null, 2));
+        // REMOVE END
+
         for (var i = nodeIds.length; i--;) {
             changes = [];
             attrs = Object.keys(this.changes[nodeIds[i]]);
@@ -480,7 +500,13 @@ define([
                         this._metadata[mdIds[i]] = nodes[i];
                     }
                 });
-            });
+            })
+            .then(() => {  // REMOVE
+                this.logger.info('Updated nodes. Checking the value of "points"');
+                this.logger.info('Points are ' +
+                    this.core.getAttribute(this._metadata[LINE_ID], 'points')
+                );
+            });  // REMOVE
     };
 
     ExecuteJob.prototype.updateMetaNode = function (name) {
@@ -1474,6 +1500,7 @@ define([
         id = jobId + '/' + id;
         this.logger.info(`Adding point ${x}, ${y} to ${id}`);
         line = this._metadata[id];
+        LINE_ID = id;  // REMOVE
         if (!line) {
             this.logger.warn(`Can't add point to non-existent line: ${id}`);
             return;
