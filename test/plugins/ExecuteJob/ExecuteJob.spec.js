@@ -3,7 +3,7 @@
 'use strict';
 var testFixture = require('../../globals');
 
-describe('ExecuteJob', function () {
+describe.only('ExecuteJob', function () {
     var gmeConfig = testFixture.getGmeConfig(),
         expect = testFixture.expect,
         logger = testFixture.logger.fork('ExecuteJob'),
@@ -123,18 +123,17 @@ describe('ExecuteJob', function () {
             // Run setAttribute on some node
             var graphTmp = plugin.createNode('pipeline.Graph', node),
                 newVal = 'testGraph',
-                id = 'testId',
-                tmp;
+                id = 'testId';
 
             // Get the 
-            plugin.setAttribute(graph, 'name', newVal);
-            plugin._metadata[tmp] = graph;
-            plugin.createIdToMetadataId[graph] = tmp;
+            plugin.setAttribute(graphTmp, 'name', newVal);
+            plugin._metadata[id] = graphTmp;
+            plugin.createIdToMetadataId[graphTmp] = id;
 
             // Check that the value is correct before applying node changes
             var updateNodes = plugin.updateNodes;
             plugin.updateNodes = function() {
-                var graph = plugin._metadata[tmp],
+                var graph = plugin._metadata[id],
                     attrValue = plugin.getAttribute(graph, 'name');
 
                 expect(attrValue).to.equal(newVal);
@@ -171,7 +170,7 @@ describe('ExecuteJob', function () {
         });
     });
 
-    describe.only('createNode', function() {
+    describe('createNode', function() {
         beforeEach(preparePlugin);
 
         it('should update _metadata after applying changes', function(done) {

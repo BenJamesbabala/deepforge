@@ -39,8 +39,6 @@ define([
         CREATE_PREFIX = 'created_node_',
         INDEX = 1;
 
-    var LINE_ID;  // REMOVE
-
     /**
      * Initializes a new instance of ExecuteJob.
      * @class
@@ -89,6 +87,7 @@ define([
             branchName: this.branchName,
             projectId: this.projectId
         });
+        this.LINE_ID = null;  // REMOVE
         return result;
     };
 
@@ -253,7 +252,7 @@ define([
             attr = changes[i][0];
             value = changes[i][1];
             if (attr === 'points') {  // REMOVE
-                LINE_ID = this.core.getPath(node);
+                this.LINE_ID = this.core.getPath(node);
             }  // REMOVE
             if (value !== null) {
                 this.logger.info(`Setting ${attr} to ${value} (${this.core.getPath(node)})`);
@@ -502,10 +501,12 @@ define([
                 });
             })
             .then(() => {  // REMOVE
-                this.logger.info('Updated nodes. Checking the value of "points"');
-                this.logger.info('Points are ' +
-                    this.core.getAttribute(this._metadata[LINE_ID], 'points')
-                );
+                if (this.LINE_ID && this._metadata[this.LINE_ID]) {
+                    this.logger.info('Updated nodes. Checking the value of "points"');
+                    this.logger.info('Points are ' +
+                        this.core.getAttribute(this._metadata[this.LINE_ID], 'points')
+                    );
+                }
             });  // REMOVE
     };
 
@@ -1500,7 +1501,7 @@ define([
         id = jobId + '/' + id;
         this.logger.info(`Adding point ${x}, ${y} to ${id}`);
         line = this._metadata[id];
-        LINE_ID = id;  // REMOVE
+        this.LINE_ID = id;  // REMOVE
         if (!line) {
             this.logger.warn(`Can't add point to non-existent line: ${id}`);
             return;
